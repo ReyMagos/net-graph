@@ -3,6 +3,24 @@ import {useEffect, useRef, useState} from "react";
 
 import {ToolPanel, Tool, Action} from "./ToolPanel";
 
+class Queue<T> {
+    private storage: T[] = [];
+
+    constructor(private capacity: number = Infinity) {}
+
+    push(item: T): void {
+        if (this.size() === this.capacity) {
+            throw Error("Queue has reached max capacity, you cannot add more items");
+        }
+        this.storage.push(item);
+    }
+    pop(): T | undefined {
+        return this.storage.shift();
+    }
+    size(): number {
+        return this.storage.length;
+    }
+}
 
 let graph: Graph = null;
 
@@ -42,7 +60,7 @@ const AddTool = new Tool("add");
 const RemoveTool = new Tool("remove");
 const SetSourceTool = new Tool("set_source");
 const SetTargetTool = new Tool("set_target");
-const RunAction = new Action("run", () => {console.log("Run");});
+const RunAction = new Action("run", () => graph.runTransferDemo());
 
 class Graph {
     scheme: Map<GraphNode, Set<GraphNode>>;
@@ -79,10 +97,6 @@ class Graph {
 
     setCurrentTool(tool: Tool) {
         this.currentTool = tool;
-    }
-
-    getCurrentTool(): Tool {
-        return this.currentTool;
     }
 
     distance(x1: number, y1: number, x2: number, y2: number): number {
@@ -234,25 +248,65 @@ class Graph {
         return this.scheme.has(node);
     }
 
-    runTransferDemo() {
-        if (this.sourceNode !== null && this.targetNode !== null) {
-
-        }
-    }
-
-    findRoute(currentNode: GraphNode, currentRoute: Array<GraphNode>, target: GraphNode) {
-        if (currentNode === target) {
-            // Completed
-        }
-        this.scheme.get(currentNode).forEach((nextNode) => {
-            currentRoute.push(nextNode);
-            setTimeout(() => {this.findRoute(nextNode, currentRoute, target)}, 1000);
-            currentRoute.pop();
+    clearDemo() {
+        this.edges.forEach((edge) => {
+            if (edge.hasState("path"))
+                this.edges.delete(edge);
         });
     }
 
-    transferPacket(currentNode: GraphNode, route: Array<GraphNode>) {
+    runTransferDemo() {
+        this.clearDemo();
+        if (this.sourceNode !== null && this.targetNode !== null) {
+            let route = this.findRoute(this.sourceNode, this.targetNode);
+            if (route.length > 0) {
+                let prev = this.sourceNode;
+                for (let node of route) {
+                    let edge = new GraphEdge(prev, node);
+                    edge.setState("path");
+                    this.edges.add(edge);
+                    prev = node;
+                }
+            } else {
+                alert("Path not found");
+            }
+        } else {
+            alert("Source or target doesn't labeled")
+        }
 
+        this.render();
+    }
+
+    findRoute(source: GraphNode, target: GraphNode): Array<GraphNode> {
+        let q = new Queue<GraphNode>();
+        q.push(source);
+        let p = new Map<GraphNode, GraphNode>();
+        let used = new Set<GraphNode>();
+        used.add(source)
+        while (q.size() > 0) {
+            let current = q.pop();
+
+            this.scheme.get(current).forEach((next) => {
+                if (!used.has(next)) {
+                    used.add(next);
+                    q.push(next);
+                    p.set(next, current);
+                }
+            });
+        }
+
+        if (!used.has(target)) {
+            return [];
+        } else {
+            let route = [target];
+            let node = target;
+            while (node !== source) {
+                node = p.get(node);
+                route.push(node);
+            }
+
+            return route.reverse();
+        }
     }
 
     render() {
@@ -304,11 +358,11 @@ class GraphNode extends GraphObject {
         context.arc(this.x, this.y, this.radius, 0, 2 * Math.PI, false);
 
         if (this.hasState("selected")) {
-            context.fillStyle = "black";
+            context.fillStyle = "#86fa09";
         } else if (this.hasState("hovered")) {
-            context.fillStyle = "blue";
+            context.fillStyle = "#3db9a6";
         } else {
-            context.fillStyle = "green";
+            context.fillStyle = "#3f3f3f";
         }
 
         context.fill();
@@ -339,7 +393,14 @@ class GraphEdge extends GraphObject {
         context.moveTo(this.from.x, this.from.y);
         context.lineTo(this.to.x, this.to.y);
 
-        context.strokeStyle = this.hasState("hovered") ? "blue" : "red";
+        if (this.hasState("path")) {
+            context.strokeStyle = "#ff0000";
+        } else if (this.hasState("hovered")) {
+            context.strokeStyle = "#3db9a6";
+        } else {
+            context.strokeStyle = "#3f3f3f";
+        }
+
         context.lineWidth = 5;
         context.stroke();
     }
