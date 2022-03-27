@@ -1,0 +1,14 @@
+body {
+  height: 100vh;
+  margin: 0;
+}
+#graph-canvas {
+  box-sizing: border-box;
+  border-radius: 0 0 5px 5px;
+  width: 100%;
+  border: #474747 2px solid;
+}
+#container {
+  height: calc(100vh - 42px);
+}
+/*# sourceMappingURL=GraphApp.css.map */
